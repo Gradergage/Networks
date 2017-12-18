@@ -9,6 +9,64 @@ int getData(char *recvbuf,int &number,char* data)
 
     return 0;
 }
+
+int recv_to(int fd, char *buffer, int len, int flags, int to)
+{
+
+    fd_set tempset;
+    int result;
+    u_long iof = -1;
+    struct timeval tv;
+
+    // Initialize the set
+    FD_ZERO(&tempset);
+    FD_SET(fd, &tempset);
+
+    // Initialize time out struct
+    tv.tv_sec = 0;
+    tv.tv_usec = to * 1000;
+    // select()
+    result = select(fd+1, &tempset, NULL, NULL, &tv);
+
+    // Check status
+    if (result < 0)
+        return -1;
+    else if (result > 0 && FD_ISSET(fd, &tempset))
+    {
+        // Set non-blocking mode
+        if ((iof = ioctlsocket(fd, FIONBIO, 0)) != -1)
+            ioctlsocket(fd, FIONBIO, &iof);
+        // receive
+        result = recv(fd, buffer, len, flags);
+        // set as before
+        if (iof != -1)
+            ioctlsocket(fd, FIONBIO, &iof);
+        return result;
+    }
+    return -2;
+}
+
+int approve(SOCKET socket)
+{
+    char app[2]="a";
+    int iResult=send(socket,app,sizeof(app),0);
+    if(iResult<=0)
+    {
+        return -1;
+    }
+    return 0;
+}
+
+int packetExist(std::vector <int> numbers,int number)
+{
+    for(int n : numbers)
+    {
+        if(n==number)
+            return 1;
+    }
+    return 0;
+}
+
 int readUDP(SOCKET socket,char* recvbufn,int recvbuflen)
 {
     std::vector <int>numbers;
@@ -18,56 +76,60 @@ int readUDP(SOCKET socket,char* recvbufn,int recvbuflen)
     char recvbuf[DEFAULT_BUFLEN+PREFIXLEN];
     int recvBytes=0;
     int iResult=0;
+    int firstTransmit=1;
     while(recvBytes<recvbuflen)
     {
-      /*  fd_set readset;
-        int result;
-        do
+        if(firstTransmit)
         {
-            FD_ZERO(&readset);
-            FD_SET(socket, &readset);
-            result = select(socket + 1, &readset, NULL, NULL, NULL);
+            iResult=recv(socket,recvbuf,sizeof(recvbuf),0);
         }
-        while (result == -1 && errno == EINTR);
-
-        if (result > 0)
+        else
         {
-            if (FD_ISSET(socket, &readset))
-            { */
-                iResult=recv(socket,recvbuf,sizeof(recvbuf),0);
-
-               // printf("%s \n",recvbuf);
-        //    }
-      //  }
-        if(iResult<0)
+            iResult=recv_to(socket,recvbuf,sizeof(recvbuf),0,200);
+        }
+        if (iResult <=0)
         {
             return -1;
         }
+     //   printf("%s",recvbuf);
+
         /*approve*/
-        char app[2]="a";
-
-        iResult=send(socket,app,sizeof(app),0);
+        iResult=approve(socket);
         if(iResult<0)
         {
             return -1;
         }
-       // printf("approve sended\n");
+       // printf(" approve sended\n");
+
         char message[DEFAULT_BUFLEN];
         int number;
         getData(recvbuf, number,message);
-    //    printf("%d %s \n",number,message);
-      //  printf("%s \n",message);
-      //  char*temp=new char();
-      char *temp=new char[DEFAULT_BUFLEN];
-        strncpy(temp,message,DEFAULT_BUFLEN);
-        packets.push_back(temp);
-        numbers.push_back(number);
-        recvBytes+=DEFAULT_BUFLEN;
+        //  printf("%d %s \n",number,message);
+        //  printf("%s \n",message);
+        //  char*temp=new char();
+        if(packetExist(numbers,number))
+        {
+            iResult=approve(socket);
+            if(iResult<0)
+            {
+                return -1;
+            }
+          //  printf(" approve dublicated sended\n");
+        }
+        else
+        {
+            char *temp=new char[DEFAULT_BUFLEN];
+            strncpy(temp,message,DEFAULT_BUFLEN);
+            packets.push_back(temp);
+            numbers.push_back(number);
+            recvBytes+=DEFAULT_BUFLEN;
+        }
     }
+    //assembly of packets
     int countOfPackets=packets.size();
-    for(int i=0;i<countOfPackets;i++)
+    for(int i=0; i<countOfPackets; i++)
     {
-        for(int j=0;j<countOfPackets;j++)
+        for(int j=0; j<countOfPackets; j++)
         {
             if(numbers[j]==i)
             {
@@ -76,8 +138,10 @@ int readUDP(SOCKET socket,char* recvbufn,int recvbuflen)
             }
         }
     }
+ //   printf("recieved: %s\n",recvbufn);
     return 0;
 }
+
 int sendUDP(SOCKET sock,char *sendbuff, int sendbufflen)
 {
     int sendedBytesSize=0;
@@ -86,13 +150,8 @@ int sendUDP(SOCKET sock,char *sendbuff, int sendbufflen)
     char numbuf[PREFIXLEN];
     char tempbufn[PREFIXLEN+DEFAULT_BUFLEN]="0 ";
 
-    snprintf(numbuf,sizeof(numbuf),"%d",sendbufflen);
-    strcat(tempbufn,numbuf);
-    //int iResult = send(sock,tempbufn,sizeof(tempbufn),0);
     while(sendedBytesSize<sendbufflen)
     {
-
-
         memset(tempbufn,NULL,sizeof(tempbufn));
         snprintf(tempbufn,sizeof(tempbufn),"%d",i);
         strcat(tempbufn," ");
@@ -104,65 +163,54 @@ int sendUDP(SOCKET sock,char *sendbuff, int sendbufflen)
         }
 
         strncpy(tempbuf,sendbuff+sendedBytesSize,sizeof(tempbuf));
-        //   printf("tempbuf %s\n",tempbuf);
-
-
         strncat(tempbufn,tempbuf,DEFAULT_BUFLEN);
 
-        sendedBytesSize+=lastBytes;
-      //  printf("%s ",tempbufn);
-        int iResult = send(sock,tempbufn,sizeof(tempbufn),0);
-        if(iResult<0)
-        {
-            return -1;
-        }
-        char app[2];
+
+        //printf("%s ",tempbufn);
+        //count of resend cases is three
         int cnt=0;
 
         while(true)
         {
-           /* if(cnt==3)
+
+            int iResult = send(sock,tempbufn,sizeof(tempbufn),0);
+
+            if(iResult<=0)
             {
                 return -1;
             }
-            fd_set readset;
-            int result;
-            struct timeval tv;
-            tv.tv_sec = 0;
-            tv.tv_usec = 100000;
-            do
-            {
-                FD_ZERO(&readset);
-                FD_SET(sock, &readset);
-                result = select(sock + 1, &readset, NULL, NULL, &tv);
-            }
-            while (result == -1 && errno == EINTR);
 
-            if (result > 0)
+            char app[2];
+
+            //recv with 100msec timeout
+            iResult = recv_to(sock,app,sizeof(app),0,100);
+
+            if (iResult == 0)
             {
-                if (FD_ISSET(sock, &readset))
-                {
-                    */
-                    iResult = recv(sock,app,sizeof(app),0);
-                    if (iResult < 0)
-                    {
-                        /* This means the other side closed the socket */
-                        return -1;
-                    }
-                    else
-                    {
-                        break;
-                    }
-            /*    }
+                /* This means the other side closed the socket or error got */
+                return -1;
             }
-            else
+            else if(iResult==-2)
             {
-                cnt++;
-            } */
+           //     printf("approve %d failed\n",cnt);
+                if(cnt++==3)
+                {
+                    return -1;
+                }
+                continue;
+            }
+            else if(iResult<0)
+            {
+                return -1;
+            }
+
+            break;
         }
-    //    printf("approved \n");
+        sendedBytesSize+=lastBytes;
         i++;
     }
-
+ //   printf("sended\n");
     return 0;
 }
+
+

@@ -313,9 +313,9 @@ int auth(CLIENT *user)
 {
 
     char recvbuf[DEFAULT_BUFLEN];
-    cMutex.lock();
-    printf("Entered Auth\n");
-    cMutex.unlock();
+//    cMutex.lock();
+//    printf("Entered Auth\n");
+//    cMutex.unlock();
     //keyword
 //    cMutex.lock();
 //    printf("Entered auth \n");
@@ -474,12 +474,12 @@ int sendMaxNumber(int sock)
 // Client thread which exchanges messages and queries
 int handleClient(CLIENT *client)
 {
-    cMutex.lock();
-    printf("In client thread info socket: %d ",client->sock);
-    char *connected_ip = inet_ntoa(client->addr.sin_addr);
-    int port = ntohs(client->addr.sin_port);
-    printf(" %s:%d\n", connected_ip,port);
-    cMutex.unlock();
+//    cMutex.lock();
+//    printf("In client thread info socket: %d ",client->sock);
+//    char *connected_ip = inet_ntoa(client->addr.sin_addr);
+//    int port = ntohs(client->addr.sin_port);
+//    printf(" %s:%d\n", connected_ip,port);
+//    cMutex.unlock();
 
     int cSocket = client->sock;
     unsigned int iResult;

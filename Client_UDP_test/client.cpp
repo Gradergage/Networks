@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <thread>
 #include <mutex>
+#include <fcntl.h>
 #define DEFAULT_BUFLEN 512
 #define PREFIXLEN 11
 #define BLOCK_SIZE 16384
