@@ -1,3 +1,0 @@
-int size = sizeof(addr);
-        getsockname(sock, (sockaddr*)&addr, &size);
-        printf("%d\n", ntohs(addr.sin_port) );

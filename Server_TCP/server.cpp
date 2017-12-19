@@ -24,7 +24,7 @@ std::mutex aMutex; //Write file mutex
 std::mutex dMutex; //Write file mutex
 int lowBound;
 int maxNumber=0;
-char IP_ADDRESS[DEFAULT_BUFLEN];// = "192.168.213.1";
+char IP_ADDRESS[DEFAULT_BUFLEN];
 
 //Main structure which defines client parameters
 struct CLIENT_INFO
@@ -194,9 +194,7 @@ int recieve_numbers(SOCKET sock,int bound)
         iResult=readn(sock,recvbuf,sizeof(recvbuf));
         if(iResult==SOCKET_ERROR||iResult==INVALID_SOCKET)
         {
-            //bMutex.lock();
             queueBounds.push_back(bound);
-            //bMutex.unlock();
             return -1; //aborted
         }
         else if(strcmp(recvbuf,"-end")==0)
@@ -208,10 +206,6 @@ int recieve_numbers(SOCKET sock,int bound)
             numbers.push_back(atoi(recvbuf));
         }
     }
-   /* for(int n : numbers)
-    {
-        printf("%d \n",n);
-    } */
     mMutex.lock();
     maxNumber=numbers.back();
     mMutex.unlock();
@@ -258,24 +252,7 @@ void socketInfo(sockaddr_in & client_info)
     int port = ntohs(client_info.sin_port);
     printf("%s:%d\n", connected_ip,port);
 }
-int disconnectInactive()
-{   vMutex.lock();
-    int i=0;
-    for(CLIENT *n : clients)
-    {
-            if(!n->connected)
-           {
-                n->cTh->join();
-                delete(n->cTh);
-                delete(n);
-            }
-        clients.erase(clients.begin()+i);
-        i++;
-    }
 
-    vMutex.lock();
-    return 0;
-}
 // Disconnecting and clearing memory of client
 bool disconnectClientById(int id)
 {
@@ -291,8 +268,6 @@ bool disconnectClientById(int id)
             cMutex.lock();
             printf("Client %s has been disconnected\n",clients[i]->info.login);
             cMutex.unlock();
-           // delete(clients[i]);
-            //clients.erase(clients.begin()+i);
             vMutex.unlock();
             return true;
         }
@@ -320,11 +295,6 @@ bool findById(int id)
 int auth(CLIENT *user)
 {
     char recvbuf[DEFAULT_BUFLEN];
-//    cMutex.lock();
-//    printf("Entered Auth\n");
-//    cMutex.unlock();
-    //keyword
-
 
     int iResult = readn(user->sock,recvbuf,DEFAULT_BUFLEN);
     if(iResult==SOCKET_ERROR||iResult==INVALID_SOCKET)
@@ -470,9 +440,6 @@ int handleClient(CLIENT *client)
             bMutex.unlock();
             snprintf(sendbuf,sizeof(sendbuf),"%d",newBound);
             send(cSocket,sendbuf,sizeof(sendbuf),0);
-          /*  cMutex.lock();
-            printf("Bound %d sended to client %d\n",newBound,cId);
-            cMutex.unlock(); */
             bMutex.lock();
             lowBound+=BLOCK_SIZE;
             bMutex.unlock();
@@ -557,7 +524,6 @@ void showAllClients()
     vMutex.unlock();
     printf("\n");
     cMutex.unlock();
-   // disconnectInactive();
 }
 void showAllInfos()
 {
@@ -623,7 +589,6 @@ int acceptThread(SOCKET & sock)
                 break;
             }
         }
-        //load_infos();
         // Attaching socket's info to socket itself
         char* innerIp=inet_ntoa(client_info.sin_addr);
         entrySocket->addr = client_info;
@@ -642,7 +607,6 @@ int acceptThread(SOCKET & sock)
         cMutex.lock();
         printf("New client %s:%d connected using id: %d\n", innerIp,port,id);
         cMutex.unlock();
-      //  disconnectInactive();
    }
 
    disconnectAll();
@@ -659,12 +623,9 @@ int main()
     int iFamily = AF_INET;
     int iType = SOCK_STREAM;
     int iProtocol = IPPROTO_TCP;
-
-
     int PORT=27015;
 
     SOCKET sock = INVALID_SOCKET;
-
 
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -695,27 +656,21 @@ int main()
         WSACleanup();
         return 1;
     }
-    printf("-Starting server at %s:%d\n",IP_ADDRESS,PORT);
-
-
+    printf("Starting server at %s:%d\n",IP_ADDRESS,PORT);
 
     if (listen(sock, SOMAXCONN) == SOCKET_ERROR)
         wprintf(L"listen function failed with error: %d\n", WSAGetLastError());
-
-    cMutex.lock();
-   // printf("\nMENU \n1 - show all clients menu\n2 - close connection with some client\n3 - show infos\n4 - Show bound\n6 - shutdown server\n\n");
-    cMutex.unlock();
 
     // Starting accept thread
     std::thread acceptTh(acceptThread, std::ref(sock));
     // Server menu working in main thread
     while(true)
     {
-        printf("\nMENU \n1 - show all clients menu\n2 - close connection with some client\n3 - show infos\n4 - show max\n6 - shutdown server\n\n");
-        char choise = getch();
         cMutex.lock();
-        //printf("\nMENU \n1 - show all clients menu\n2 - close connection with some client\n3 - show infos\n4 - Show bound\n6 - shutdown server\n\n");
+        printf("\nMENU \n1 - show all clients menu\n2 - close connection with some client\n3 - show infos\n4 - show max\n6 - shutdown server\n\n");
         cMutex.unlock();
+
+        char choise = getch();
         switch(choise)
         {
             case '1':{

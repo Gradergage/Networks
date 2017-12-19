@@ -16,7 +16,6 @@
 
 unsigned short AUTO_TRANSMIT = 0;
 unsigned short calculate = 0;
-//std::vector <int> numbers;
 std::mutex cMutex;
 std::mutex vMutex;
 std::mutex sMutex;
@@ -61,7 +60,6 @@ int getBound(int sock)
     char sendbuf[DEFAULT_BUFLEN]="-bound";
     send(sock,sendbuf,sizeof(sendbuf),0);
     readn(sock,sendbuf,sizeof(sendbuf));
-  //  printf("Recieved bound %d\n",atoi(sendbuf));
     return atoi(sendbuf);
 }
 int calculateNumbers(int sock,int bound)
@@ -91,13 +89,8 @@ int calculateNumbers(int sock,int bound)
 				break;
 			}
 			j++;
-		//	usleep(100);
 		}
 	}
-	/*cMutex.lock();
-	printf("Calculating in bounds %d : %d completed\n",bound,bound+BLOCK_SIZE);
-	cMutex.unlock(); */
-	//send_numbers(sock,numbers);
 	char sendbuf[DEFAULT_BUFLEN]="-numbers";
     send(sock,sendbuf,sizeof(sendbuf),0);
 
@@ -108,9 +101,6 @@ int calculateNumbers(int sock,int bound)
     //send numbers
     for(int n : numbers)
     {
-       /* cMutex.lock();
-        printf("%d\n",n);
-        cMutex.unlock();*/
         snprintf(sendbuf,sizeof(sendbuf),"%d",n);
         send(sock,sendbuf,sizeof(sendbuf),0);
     }
@@ -118,12 +108,8 @@ int calculateNumbers(int sock,int bound)
     strcpy(sendbuf,"-end");
     if(send(sock,sendbuf,sizeof(sendbuf),0)<0);
     {
-       // perror("Send numbers");
         return 0;
     }
- /*   cMutex.lock();
-    printf("Send completed\n");
-    cMutex.unlock(); */
 	return 0;
 }
 int calculateAndTransmit(int sock)
@@ -147,10 +133,8 @@ int auth(int sock,char param[],int paramLen)
     char password[DEFAULT_BUFLEN];
     char recvbuf[DEFAULT_BUFLEN];
     printf("Enter login: \n");
-   // scanf("%s",login);
     std::cin>>login;
     printf("Enter password: \n");
-    //scanf("%s",password);
     std::cin>>password;
 
     if(send(sock, param, DEFAULT_BUFLEN, 0)<0)
@@ -158,27 +142,22 @@ int auth(int sock,char param[],int paramLen)
         perror("Param");
         return 0;
     }
-   // printf("param sended: \n");
     if(send(sock, login, sizeof(login), 0)<0)
     {
         perror("Param");
         return 0;
     }
-  //  printf("login sended: \n");
     if(send(sock, password, sizeof(password), 0)<0)
     {
         perror("Param");
         return 0;
     }
- //   printf("password sended: \n");
 
     if(readn(sock, recvbuf, DEFAULT_BUFLEN)>0)
     {
         perror("Param");
         return 0;
     }
-
- // printf("Param received!\n");
     if(strcmp(recvbuf,"-sa")==0)
     {
         cMutex.lock();
@@ -276,7 +255,7 @@ int main()
     }
 
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(27015); // или любой другой порт...
+    addr.sin_port = htons(27015);
     addr.sin_addr.s_addr = inet_addr("192.168.213.1");
     if(connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
@@ -285,8 +264,7 @@ int main()
         cMutex.unlock();
         return 0;
     }
-   // std::thread calcThread(calculatingThread);
-    int authFailed=1;
+   int authFailed=1;
     printf("Client started\n\n");
     while(true)
     {
@@ -318,40 +296,21 @@ int main()
             }
         }
     }
-   // printf("Exchange started \nAUTO_TRANSMIT %d\n",AUTO_TRANSMIT);
-  /*  cMutex.lock();
-        printf("MENU\n\
-        1 - Calculating and transmitting %d\n\
-        2 - Enable transmitting %d\n\
-        3 - Close server\n\n",calculate,AUTO_TRANSMIT);
-    cMutex.unlock(); */
-    std::thread *calcsThread;//=new std::thread(calculateAndTransmit,std::ref(sock));
-	while(true)
+   std::thread *calcsThread;while(true)
 	{
-        //system("clear");
         cMutex.lock();
         printf("MENU\n1 - Enable calculating and transmitting %d\n\
 2 - Get max number\n\
 3 - Get N last numbers\n\
 4 - Exit\n\n",AUTO_TRANSMIT);
         cMutex.unlock();
+
         char choise;
         std::cin>>choise;
-      /*  system("clear");
-        cMutex.lock();
-        printf("MENU\n\
-        1 - Calculating and transmitting %d\n\
-        2 - Enable calculating and transmitting %d\n\
-        3 - Exit\n\n",calculate,AUTO_TRANSMIT);
-        cMutex.unlock();*/
-
-
-
         switch(choise)
         {
             case '2':{
-              //  cal
-              calculate^=0x1;
+                calculate^=0x1;
                   //calculateAndTransmit(sock);
                 sMutex.lock();
                 getMaxNumber(sock);
@@ -406,8 +365,6 @@ int main()
             }
         }
     }
-  //  calcThread.join();
     close(sock);
-
     return 0;
 }
